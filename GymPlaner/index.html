@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f0a500" />
+  <meta name="description" content="GymPlaner — плануй тренування, відстежуй прогрес, досягай рекордів" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GymPlaner" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.svg" />
+  <title>GymPlaner — Твій Тренувальний Помічник</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- PWA bootstrap — до body -->
+</head>
+<body>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-bg-grid"></div>
+  <div class="auth-container">
+    <div class="auth-lang-selector">
+      <button class="lang-btn" data-lang-btn="uk">UA</button>
+      <button class="lang-btn" data-lang-btn="en">EN</button>
+    </div>
+    <div class="auth-brand">
+      <span class="brand-icon"></span>
+      <h1 class="brand-title">GymPlaner</h1>
+      <p class="brand-sub" data-i18n="auth_brand_sub">Тренуйся розумно. Досягай більше.</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login" data-i18n="auth_tab_login">Увійти</button>
+      <button class="auth-tab" data-tab="register" data-i18n="auth_tab_register">Реєстрація</button>
+    </div>
+    <form id="login-form" class="auth-form active">
+      <div class="field-group"><label data-i18n="auth_label_username">Логін</label><input type="text" id="login-username" data-i18n="auth_placeholder_username" placeholder="Введи логін" autocomplete="username" /></div>
+      <div class="field-group"><label data-i18n="auth_label_password">Пароль</label><input type="password" id="login-password" data-i18n="auth_placeholder_password" placeholder="Введи пароль" autocomplete="current-password" /></div>
+      <button type="submit" class="btn-primary full-width" data-i18n="auth_btn_login">Увійти</button>
+      <p class="auth-error" id="login-error"></p>
+    </form>
+    <form id="register-form" class="auth-form">
+      <div class="field-group"><label data-i18n="auth_label_name">Ім'я</label><input type="text" id="reg-name" data-i18n="auth_placeholder_name" placeholder="Твоє ім'я" /></div>
+      <div class="field-group"><label data-i18n="auth_label_username">Логін</label><input type="text" id="reg-username" data-i18n="auth_placeholder_reg_username" placeholder="Придумай логін" autocomplete="username" /></div>
+      <div class="field-group"><label data-i18n="auth_label_password">Пароль</label><input type="password" id="reg-password" data-i18n="auth_placeholder_reg_password" placeholder="Придумай пароль" autocomplete="new-password" /></div>
+      <button type="submit" class="btn-primary full-width" data-i18n="auth_btn_register">Зареєструватись</button>
+      <p class="auth-error" id="reg-error"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon"></span>
+      <span class="brand-name">GymPlaner</span>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard">   <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_dashboard">Дашборд</span></button>
+      <button class="nav-item" data-page="planner">            <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_planner">Планувальник</span></button>
+      <button class="nav-item" data-page="exercises">          <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_exercises">База вправ</span></button>
+      <button class="nav-item" data-page="calendar">           <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_calendar">Календар</span></button>
+      <button class="nav-item" data-page="progress">           <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_progress">Прогрес</span></button>
+      <button class="nav-item" data-page="ai">                 <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_ai">AI Аналітика</span></button>
+      <button class="nav-item" data-page="gamification">       <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_gamification">Гейміфікація</span></button>
+      <button class="nav-item" data-page="social">             <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_social">Соціальне</span></button>
+      <button class="nav-item" data-page="achievements">       <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_achievements">Досягнення</span></button>
+      <button class="nav-item" data-page="profile">            <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_profile">Профіль</span></button>
+      <button class="nav-item" data-page="settings">           <span class="nav-icon"></span><span class="nav-label" data-i18n="nav_settings">Налаштування</span></button>
+    </nav>
+    <!-- XP прогрес-бар у sidebar -->
+    <div class="sidebar-xp" id="sidebar-xp">
+      <div class="sidebar-xp-label"><span id="sidebar-level-icon">🥚</span> <span id="sidebar-level-name">Новачок</span></div>
+      <div class="sidebar-xp-bar"><div class="sidebar-xp-fill" id="sidebar-xp-fill" style="width:0%"></div></div>
+      <div class="sidebar-xp-nums"><span id="sidebar-xp-val">0 XP</span></div>
+    </div>
+    <button class="btn-logout" id="btn-logout" data-i18n="sidebar_logout">⬅ Вийти</button>
+  </aside>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="burger-btn" id="burger-btn">☰</button>
+    <h2 class="page-title" id="page-title" data-i18n="nav_dashboard">Дашборд</h2>
+    <div class="topbar-right">
+      <!-- Network badge (буде вставлений pwa.js) -->
+      <div class="rest-timer-widget" id="rest-timer-widget">
+        <span class="timer-icon">⏱</span>
+        <span class="timer-display" id="timer-display">00:00</span>
+        <button class="timer-btn" id="timer-start-btn" data-i18n-title="auth_btn_login" title="Старт/Стоп">▶</button>
+        <button class="timer-btn" id="timer-reset-btn" data-i18n-title="nav_settings" title="Скинути">↺</button>
+      </div>
+      <div class="topbar-avatar" id="topbar-avatar"></div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="page active" id="page-dashboard">
+      <div class="welcome-banner">
+        <div class="welcome-text">
+          <h2 class="welcome-title"><span data-i18n="dash_welcome">Вітаємо</span>, <span id="welcome-name">Атлете</span>! 🔥</h2>
+          <p class="welcome-sub" data-i18n="dash_ready">Готовий до нового тренування?</p>
+        </div>
+        <button class="btn-primary" id="btn-quick-workout" data-i18n="dash_btn_quick">+ Швидке тренування</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon"></div><div class="stat-info"><span class="stat-value" id="stat-total-workouts">0</span><span class="stat-label" data-i18n="dash_stat_workouts">Всього тренувань</span></div></div>
+        <div class="stat-card"><div class="stat-icon"></div><div class="stat-info"><span class="stat-value" id="stat-this-week">0</span><span class="stat-label" data-i18n="dash_stat_week">Цього тижня</span></div></div>
+        <div class="stat-card"><div class="stat-icon"></div><div class="stat-info"><span class="stat-value" id="stat-streak">0</span><span class="stat-label" data-i18n="dash_stat_streak">Серія днів</span></div></div>
+        <div class="stat-card"><div class="stat-icon"></div><div class="stat-info"><span class="stat-value" id="stat-xp">0</span><span class="stat-label" data-i18n="dash_stat_xp">XP зароблено</span></div></div>
+      </div>
+      <div class="section-header"><h3 class="section-title" data-i18n="dash_sec_today">Сьогодні</h3></div>
+      <div id="today-workouts" class="today-list"></div>
+      <div class="section-header"><h3 class="section-title" data-i18n="dash_sec_programs">Мої програми</h3><button class="btn-secondary" onclick="App.navigate('planner')" data-i18n="dash_btn_all_progs">Всі програми</button></div>
+      <div id="dashboard-programs" class="programs-grid"></div>
+    </section>
+
+    <!-- ===== PLANNER ===== -->
+    <section class="page" id="page-planner">
+      <div class="page-header">
+        <h2 class="section-title" data-i18n="plan_title">Програми тренувань</h2>
+        <button class="btn-primary" id="btn-new-program" data-i18n="plan_btn_new">+ Нова програма</button>
+      </div>
+      <div class="io-bar">
+        <button class="btn-ghost" id="btn-export-json" data-i18n="plan_btn_export">⬇ Експорт JSON</button>
+        <label class="btn-ghost" for="import-json-input" data-i18n="plan_btn_import">⬆ Імпорт JSON</label>
+        <input type="file" id="import-json-input" accept=".json" style="display:none" />
+      </div>
+      <div id="programs-list" class="programs-grid"></div>
+    </section>
+
+    <!-- ===== EXERCISES ===== -->
+    <section class="page" id="page-exercises">
+      <div class="page-header">
+        <h2 class="section-title" data-i18n="ex_title">База вправ</h2>
+        <button class="btn-primary" id="btn-add-custom-exercise" data-i18n="ex_btn_custom">+ Своя вправа</button>
+      </div>
+      <div class="exercise-search-bar"><input type="text" id="exercise-search" data-i18n="ex_placeholder_search" placeholder="🔍  Пошук вправ..." class="search-input" /></div>
+      <div class="muscle-tabs" id="muscle-tabs">
+        <button class="muscle-tab active" data-group="all" data-i18n="mgroup_all">Всі</button>
+        <button class="muscle-tab" data-group="chest" data-i18n="mgroup_chest">Груди</button>
+        <button class="muscle-tab" data-group="back" data-i18n="mgroup_back">Спина</button>
+        <button class="muscle-tab" data-group="shoulders" data-i18n="mgroup_shoulders">Плечі</button>
+        <button class="muscle-tab" data-group="biceps" data-i18n="mgroup_biceps">Біцепс</button>
+        <button class="muscle-tab" data-group="triceps" data-i18n="mgroup_triceps">Трицепс</button>
+        <button class="muscle-tab" data-group="legs" data-i18n="mgroup_legs">Ноги</button>
+        <button class="muscle-tab" data-group="abs" data-i18n="mgroup_abs">Прес</button>
+        <button class="muscle-tab" data-group="cardio" data-i18n="mgroup_cardio">Кардіо</button>
+      </div>
+      <div id="exercises-list" class="exercises-grid"></div>
+    </section>
+
+    <!-- ===== CALENDAR ===== -->
+    <section class="page" id="page-calendar">
+      <div class="page-header"><h2 class="section-title" data-i18n="cal_title">Календар тренувань</h2></div>
+      <div class="calendar-nav">
+        <button class="btn-ghost" id="cal-prev">◀</button>
+        <h3 id="cal-month-label" class="cal-month-label"></h3>
+        <button class="btn-ghost" id="cal-next">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="cal_sec_log">Журнал тренувань</h3></div>
+      <div id="workout-log" class="workout-log"></div>
+    </section>
+
+    <!-- ===== PROGRESS ===== -->
+    <section class="page" id="page-progress">
+      <div class="page-header">
+        <h2 class="section-title" data-i18n="prog_title">Трекер прогресу</h2>
+        <button class="btn-primary" id="btn-add-measurement" data-i18n="prog_btn_meas">+ Додати заміри</button>
+      </div>
+      <div class="progress-tabs">
+        <button class="progress-tab active" data-ptab="weight" data-i18n="prog_tab_weight">Вага тіла</button>
+        <button class="progress-tab" data-ptab="measurements" data-i18n="prog_tab_meas">Виміри</button>
+        <button class="progress-tab" data-ptab="records" data-i18n="prog_tab_records">Рекорди</button>
+      </div>
+      <div class="progress-panel active" id="ptab-weight">
+        <div class="chart-container"><canvas id="weight-chart"></canvas></div>
+        <div id="weight-history" class="data-table-wrapper"></div>
+      </div>
+      <div class="progress-panel" id="ptab-measurements">
+        <div class="chart-container"><canvas id="measurements-chart"></canvas></div>
+        <div id="measurements-history" class="data-table-wrapper"></div>
+      </div>
+      <div class="progress-panel" id="ptab-records">
+        <div id="records-list" class="records-grid"></div>
+        <button class="btn-secondary" id="btn-add-record" style="margin-top:1rem" data-i18n="prog_btn_add_rec">+ Додати рекорд</button>
+      </div>
+    </section>
+
+    <!-- ===== AI ANALYTICS ===== -->
+    <section class="page" id="page-ai">
+      <div class="page-header">
+        <h2 class="section-title" data-i18n="ai_title"> AI Аналітика</h2>
+        <button class="btn-primary" id="btn-refresh-ai" data-i18n="ai_btn_refresh">↻ Оновити аналіз</button>
+      </div>
+      <div id="ai-insights-container"></div>
+
+      <!-- 1RM Calculator -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="ai_calc_title">Калькулятор 1RM</h3></div>
+      <div class="card" style="max-width:400px">
+        <div class="three-cols" style="margin-bottom:14px">
+          <div class="field-group"><label data-i18n="ai_calc_weight">Вага (кг)</label><input type="number" id="calc-weight" value="100" step="2.5" /></div>
+          <div class="field-group"><label data-i18n="ai_calc_reps">Повторень</label><input type="number" id="calc-reps"   value="5"   min="1" max="30" /></div>
+          <div class="field-group"><label data-i18n="ai_calc_1rm">1RM</label><input type="text" id="calc-result" readonly placeholder="—" style="background:var(--bg-elevated);color:var(--accent);font-weight:700" /></div>
+        </div>
+        <button class="btn-secondary" id="btn-calc-1rm" data-i18n="ai_btn_calc">Розрахувати</button>
+      </div>
+
+      <!-- Sync Status -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="ai_sync_title">Статус синхронізації</h3></div>
+      <div class="card sync-status-card" id="sync-status-card">
+        <div class="sync-row"><span data-i18n="ai_sync_mode">Режим:</span> <span id="sync-mode-label">Локальний</span></div>
+        <div class="sync-row"><span data-i18n="ai_sync_state">Стан:</span>  <span id="sync-state-label">—</span></div>
+        <div class="sync-row"><span data-i18n="ai_sync_sw">Кеш SW:</span><span id="cache-size-display">—</span></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" id="btn-force-sync" data-i18n="ai_btn_sync"> Синхронізувати</button>
+          <button class="btn-ghost"     id="btn-clear-cache" data-i18n="ai_btn_clear_cache"> Очистити кеш</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GAMIFICATION ===== -->
+    <section class="page" id="page-gamification">
+      <div class="page-header"><h2 class="section-title" data-i18n="gami_title"> Гейміфікація</h2></div>
+      <div id="gamification-container"></div>
+    </section>
+
+    <!-- ===== SOCIAL ===== -->
+    <section class="page" id="page-social">
+      <div class="page-header"><h2 class="section-title" data-i18n="soc_title"> Соціальне</h2></div>
+
+      <div class="social-tabs">
+        <button class="social-tab active" data-stab="leaderboard" data-i18n="soc_tab_leaderboard"> Рейтинг</button>
+        <button class="social-tab" data-stab="profile" data-i18n="soc_tab_profile"> Мій профіль</button>
+        <button class="social-tab" data-stab="compare" data-i18n="soc_tab_compare"> Порівняння</button>
+      </div>
+
+      <div class="social-panel active" id="stab-leaderboard">
+        <div id="leaderboard-container"></div>
+      </div>
+
+      <div class="social-panel" id="stab-profile">
+        <div id="public-profile-container"></div>
+        <div class="field-group" style="max-width:300px;margin-top:16px">
+          <label data-i18n="soc_visibility">Видимість профілю</label>
+          <select id="profile-visibility-select">
+            <option value="public" data-i18n="soc_vis_public">Публічний (видно в рейтингу)</option>
+            <option value="private" data-i18n="soc_vis_private">Приватний</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="btn-save-visibility" style="margin-top:12px" data-i18n="soc_btn_save">Зберегти</button>
+      </div>
+
+      <div class="social-panel" id="stab-compare">
+        <div class="field-group" style="max-width:300px;margin-bottom:16px">
+          <label data-i18n="soc_compare_with">Порівняти з (введи логін)</label>
+          <input type="text" id="compare-username-input" data-i18n="soc_compare_placeholder" placeholder="Логін іншого гравця" />
+          <button class="btn-secondary" id="btn-compare" style="margin-top:8px" data-i18n="soc_btn_compare">Порівняти</button>
+        </div>
+        <div id="compare-container"></div>
+      </div>
+    </section>
+
+    <!-- ===== ACHIEVEMENTS ===== -->
+    <section class="page" id="page-achievements">
+      <div class="page-header"><h2 class="section-title" data-i18n="ach_title">Досягнення </h2></div>
+      <div id="achievements-grid" class="achievements-grid"></div>
+    </section>
+
+    <!-- ===== PROFILE ===== -->
+    <section class="page" id="page-profile">
+      <div class="page-header">
+        <h2 class="section-title" data-i18n="prof_title">Особистий кабінет</h2>
+        <button class="btn-primary" id="btn-save-profile" data-i18n="prof_btn_save">Зберегти</button>
+      </div>
+      <div class="profile-layout">
+        <div class="profile-avatar-section">
+          <div class="avatar-wrapper" id="avatar-wrapper">
+            <div class="avatar-preview" id="avatar-preview"></div>
+            <label class="avatar-upload-btn" for="avatar-upload" data-i18n="prof_avatar_btn"> Змінити фото</label>
+            <input type="file" id="avatar-upload" accept="image/*" style="display:none" />
+          </div>
+          <div class="profile-stats-box">
+            <div class="pstat"><span id="pstat-workouts">0</span><small data-i18n="prof_stat_workouts">Тренувань</small></div>
+            <div class="pstat"><span id="pstat-programs">0</span><small data-i18n="prof_stat_programs">Програм</small></div>
+            <div class="pstat"><span id="pstat-records">0</span><small data-i18n="prof_stat_records">Рекордів</small></div>
+          </div>
+        </div>
+        <div class="profile-form">
+          <div class="field-group"><label data-i18n="prof_label_name">Ім'я</label><input type="text" id="profile-name" data-i18n="auth_placeholder_name" placeholder="Твоє ім'я" /></div>
+          <div class="field-group"><label data-i18n="prof_label_age">Вік</label><input type="number" id="profile-age" data-i18n="prof_label_age" placeholder="Вік" min="10" max="100" /></div>
+          <div class="field-group"><label data-i18n="prof_label_height">Ріст (см)</label><input type="number" id="profile-height" data-i18n="prof_label_height" placeholder="Ріст" /></div>
+          <div class="field-group">
+            <label data-i18n="prof_label_goal">Мета</label>
+            <select id="profile-goal">
+              <option value="" data-i18n="prof_goal_empty">Обери мету</option>
+              <option value="mass" data-i18n="prof_goal_mass">Набір маси</option>
+              <option value="cut" data-i18n="prof_goal_cut">Схуднення</option>
+              <option value="strength" data-i18n="prof_goal_strength">Сила</option>
+              <option value="endurance" data-i18n="prof_goal_endurance">Витривалість</option>
+              <option value="health" data-i18n="prof_goal_health">Здоров'я</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label data-i18n="prof_label_level">Рівень</label>
+            <select id="profile-level">
+              <option value="" data-i18n="prof_level_empty">Обери рівень</option>
+              <option value="beginner" data-i18n="prof_level_beg">Початківець</option>
+              <option value="intermediate" data-i18n="prof_level_int">Середній</option>
+              <option value="advanced" data-i18n="prof_level_adv">Просунутий</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="prof_timer_title">Таймер відпочинку</h3></div>
+      <div class="timer-settings">
+        <label><span data-i18n="prof_timer_label">Час відпочинку (сек):</span> <strong id="timer-val-display">90</strong></label>
+        <input type="range" id="timer-default-range" min="30" max="300" step="15" value="90" />
+      </div>
+    </section>
+
+    <!-- ===== SETTINGS ===== -->
+    <section class="page" id="page-settings">
+      <div class="page-header"><h2 class="section-title" data-i18n="sett_title"> Налаштування</h2></div>
+
+      <!-- Push notifications -->
+      <div class="section-header"><h3 class="section-title" data-i18n="sett_sec_notif"> Сповіщення</h3></div>
+      <div class="card" id="notifications-settings-panel"></div>
+
+      <!-- Backups -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="sett_sec_backup"> Резервні копії</h3></div>
+      <div class="card" id="backup-panel"></div>
+
+      <!-- Language selection -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title"> Мова / Language</h3></div>
+      <div class="card">
+        <div class="field-group" style="max-width:300px">
+          <label>Оберіть мову / Choose language</label>
+          <select id="language-select">
+            <option value="uk">Українська / Ukrainian</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- PWA -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="sett_sec_pwa">📲 PWA / Додаток</h3></div>
+      <div class="card">
+        <div class="pwa-info-row"><span data-i18n="sett_pwa_mode">Режим відображення:</span><span id="pwa-display-mode">—</span></div>
+        <div class="pwa-info-row"><span data-i18n="sett_pwa_sw">Service Worker:</span>    <span id="pwa-sw-status">—</span></div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-primary"   id="btn-install-pwa" data-i18n="sett_btn_install">📲 Встановити додаток</button>
+          <button class="btn-ghost"     id="btn-clear-cache-settings" data-i18n="sett_btn_clear">🗑 Очистити кеш</button>
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" style="color:var(--danger)" data-i18n="sett_sec_danger">⚠️ Небезпечна зона</h3></div>
+      <div class="card"><button class="btn-danger" id="btn-clear-data" data-i18n="sett_btn_clear_data">🗑 Видалити всі дані</button></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Modal: New/Edit Program -->
+<div class="modal-overlay hidden" id="modal-program">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-program-title" data-i18n="mod_prog_new">Нова програма</h3>
+      <button class="modal-close" data-modal="modal-program">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group"><label data-i18n="mod_prog_name">Назва програми</label><input type="text" id="prog-name" data-i18n="mod_prog_placeholder_name" placeholder="Наприклад: Пуш-Пул-Ноги" /></div>
+      <div class="field-group"><label data-i18n="mod_prog_desc">Опис</label><textarea id="prog-desc" data-i18n="mod_prog_placeholder_desc" placeholder="Опис програми..." rows="2"></textarea></div>
+      <div class="field-group">
+        <label data-i18n="mod_prog_days">Дні тижня</label>
+        <div class="days-picker" id="days-picker">
+          <label class="day-chip"><input type="checkbox" value="0" /><span>Пн</span></label>
+          <label class="day-chip"><input type="checkbox" value="1" /><span>Вт</span></label>
+          <label class="day-chip"><input type="checkbox" value="2" /><span>Ср</span></label>
+          <label class="day-chip"><input type="checkbox" value="3" /><span>Чт</span></label>
+          <label class="day-chip"><input type="checkbox" value="4" /><span>Пт</span></label>
+          <label class="day-chip"><input type="checkbox" value="5" /><span>Сб</span></label>
+          <label class="day-chip"><input type="checkbox" value="6" /><span>Нд</span></label>
+        </div>
+      </div>
+      <div class="section-header"><h4 class="section-title" data-i18n="mod_prog_exercises">Вправи</h4><button type="button" class="btn-secondary" id="btn-add-exercise-to-prog" data-i18n="mod_prog_btn_add_ex">+ Додати вправу</button></div>
+      <div id="prog-exercises-list" class="prog-exercises-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-program" data-i18n="mod_cancel">Скасувати</button>
+      <button class="btn-primary" id="btn-save-program" data-i18n="mod_save">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Exercise to Program -->
+<div class="modal-overlay hidden" id="modal-add-exercise">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" data-i18n="mod_add_ex_title">Додати вправу</h3><button class="modal-close" data-modal="modal-add-exercise">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label data-i18n="mod_add_ex_select">Вправа</label><select id="ae-exercise-select"></select></div>
+      <div class="three-cols">
+        <div class="field-group"><label data-i18n="mod_add_ex_sets">Підходи</label><input type="number" id="ae-sets" value="3" min="1" max="20" /></div>
+        <div class="field-group"><label data-i18n="mod_add_ex_reps">Повторення</label><input type="number" id="ae-reps" value="10" min="1" max="100" /></div>
+        <div class="field-group"><label data-i18n="mod_add_ex_weight">Вага (кг)</label><input type="number" id="ae-weight" value="0" min="0" step="2.5" /></div>
+      </div>
+      <div class="field-group"><label data-i18n="mod_add_ex_comment">Коментар</label><input type="text" id="ae-comment" data-i18n="mod_add_ex_placeholder_comment" placeholder="Нотатка до вправи..." /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-add-exercise" data-i18n="mod_cancel">Скасувати</button>
+      <button class="btn-primary" id="btn-confirm-add-exercise" data-i18n="mod_add_ex_btn_add">Додати</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Exercise Detail -->
+<div class="modal-overlay hidden" id="modal-exercise-detail">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" id="ex-detail-name" data-i18n="mod_ex_det_title">Назва вправи</h3><button class="modal-close" data-modal="modal-exercise-detail">✕</button></div>
+    <div class="modal-body">
+      <div class="ex-detail-group" id="ex-detail-group"></div>
+      <p class="ex-detail-desc" id="ex-detail-desc"></p>
+      <div class="ex-detail-tips" id="ex-detail-tips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Custom Exercise -->
+<div class="modal-overlay hidden" id="modal-custom-exercise">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" data-i18n="mod_cust_ex_title">Своя вправа</h3><button class="modal-close" data-modal="modal-custom-exercise">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label data-i18n="mod_cust_ex_name">Назва</label><input type="text" id="ce-name" data-i18n="mod_cust_ex_placeholder_name" placeholder="Назва вправи" /></div>
+      <div class="field-group"><label data-i18n="mod_cust_ex_group">Група м'язів</label>
+        <select id="ce-group">
+          <option value="chest" data-i18n="mgroup_chest">Груди</option><option value="back" data-i18n="mgroup_back">Спина</option>
+          <option value="shoulders" data-i18n="mgroup_shoulders">Плечі</option><option value="biceps" data-i18n="mgroup_biceps">Біцепс</option>
+          <option value="triceps" data-i18n="mgroup_triceps">Трицепс</option><option value="legs" data-i18n="mgroup_legs">Ноги</option>
+          <option value="abs" data-i18n="mgroup_abs">Прес</option><option value="cardio" data-i18n="mgroup_cardio">Кардіо</option>
+        </select>
+      </div>
+      <div class="field-group"><label data-i18n="mod_cust_ex_desc">Опис</label><textarea id="ce-desc" rows="3" data-i18n="mod_cust_ex_placeholder_desc" placeholder="Техніка виконання..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-custom-exercise" data-i18n="mod_cancel">Скасувати</button>
+      <button class="btn-primary" id="btn-save-custom-exercise" data-i18n="mod_save">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Measurement -->
+<div class="modal-overlay hidden" id="modal-measurement">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" data-i18n="mod_meas_title">Заміри тіла</h3><button class="modal-close" data-modal="modal-measurement">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label data-i18n="mod_meas_date">Дата</label><input type="date" id="meas-date" /></div>
+      <div class="field-group"><label data-i18n="mod_meas_weight">Вага (кг)</label><input type="number" id="meas-weight" step="0.1" placeholder="70.5" /></div>
+      <div class="two-cols">
+        <div class="field-group"><label data-i18n="mod_meas_chest">Груди (см)</label><input type="number" id="meas-chest" placeholder="100" /></div>
+        <div class="field-group"><label data-i18n="mod_meas_waist">Талія (см)</label><input type="number" id="meas-waist" placeholder="80" /></div>
+        <div class="field-group"><label data-i18n="mod_meas_hips">Стегна (см)</label><input type="number" id="meas-hips" placeholder="95" /></div>
+        <div class="field-group"><label data-i18n="mod_meas_bicep">Біцепс (см)</label><input type="number" id="meas-bicep" placeholder="38" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-measurement" data-i18n="mod_cancel">Скасувати</button>
+      <button class="btn-primary" id="btn-save-measurement" data-i18n="mod_save">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Record -->
+<div class="modal-overlay hidden" id="modal-record">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" data-i18n="mod_rec_title">Особистий рекорд</h3><button class="modal-close" data-modal="modal-record">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label data-i18n="mod_rec_ex">Вправа</label><select id="rec-exercise"></select></div>
+      <div class="field-group"><label data-i18n="mod_rec_weight">Вага (кг)</label><input type="number" id="rec-weight" step="2.5" placeholder="100" /></div>
+      <div class="field-group"><label data-i18n="mod_rec_reps">Повторення</label><input type="number" id="rec-reps" value="1" min="1" /></div>
+      <div class="field-group"><label data-i18n="mod_rec_date">Дата</label><input type="date" id="rec-date" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-record" data-i18n="mod_cancel">Скасувати</button>
+      <button class="btn-primary" id="btn-save-record" data-i18n="mod_save">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Workout Session -->
+<div class="modal-overlay hidden" id="modal-session">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="session-title" data-i18n="mod_sess_title">Тренування</h3>
+      <button class="modal-close" data-modal="modal-session">✕</button>
+    </div>
+    <div class="modal-body"><div id="session-exercises"></div></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" data-modal="modal-session" data-i18n="mod_close">Закрити</button>
+      <button class="btn-primary" id="btn-finish-session" data-i18n="mod_sess_btn_finish">✓ Завершити тренування</button>
+      <button class="btn-secondary" id="btn-export-pdf" data-i18n="mod_sess_btn_pdf">📄 PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay hidden" id="sidebar-overlay"></div>
+
+<!-- Modules -->
+<script src="./modules/i18n.js"></script>
+<script src="./modules/db.js"></script>
+<script src="./modules/sync.js"></script>
+<script src="./modules/ai.js"></script>
+<script src="./modules/gamification.js"></script>
+<script src="./modules/notifications.js"></script>
+<script src="./modules/security.js"></script>
+<script src="./modules/social.js"></script>
+<!-- Main app -->
+<script src="./script.js"></script>
+<!-- PWA (after app is ready) -->
+<script src="./pwa.js"></script>
+</body>
+</html>

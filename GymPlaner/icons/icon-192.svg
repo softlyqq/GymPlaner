@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1f2e"/>
+      <stop offset="100%" stop-color="#0a0b0d"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffc01a"/>
+      <stop offset="100%" stop-color="#f0a500"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42.24" fill="url(#bg)"/>
+  <rect x="61.44" y="46.080000000000005" width="15.36" height="57.599999999999994" rx="6.144" fill="url(#acc)"/>
+  <rect x="88.32" y="23.04" width="15.36" height="80.64" rx="6.144" fill="url(#acc)"/>
+  <rect x="115.2" y="61.44" width="15.36" height="42.24" rx="6.144" fill="url(#acc)"/>
+  <text x="96.0" y="155.51999999999998" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="22.080000000000002" fill="#f0a500" letter-spacing="1.536">GYMPLANER</text>
+</svg>
