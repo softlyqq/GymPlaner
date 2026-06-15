@@ -7,7 +7,7 @@
 'use strict';
 
 /* ---- Версія кешу — змінюй при кожному деплої ---- */
-const CACHE_VERSION  = 'gymplaner-v1.2.0';
+const CACHE_VERSION  = 'gymplaner-v1.2.2';
 const STATIC_CACHE   = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE  = `${CACHE_VERSION}-dynamic`;
 const API_CACHE      = `${CACHE_VERSION}-api`;
@@ -18,7 +18,9 @@ const PRECACHE_URLS = [
   './index.html',
   './style.css',
   './script.js',
+  './pwa.js',
   './manifest.json',
+  './modules/i18n.js',
   './modules/db.js',
   './modules/sync.js',
   './modules/ai.js',

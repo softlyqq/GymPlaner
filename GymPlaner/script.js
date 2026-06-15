@@ -4,6 +4,8 @@
  */
 'use strict';
 
+const tr = (key, params = {}) => window.I18n ? window.I18n.t(key, params) : key;
+
 /* ============================================================
    Storage — LocalStorage з префіксом (fallback для non-IDB)
    ============================================================ */
@@ -27,7 +29,7 @@ const Auth = (() => {
     try {
       const users = Storage.get('users', {});
       const u = users[username];
-      if (!u) return { ok:false, error:'Користувача не знайдено' };
+      if (!u) return { ok:false, error:tr('auth_user_not_found') };
       let valid = false;
       try {
         if (u.password.length === 64 && window.Security && window.crypto && window.crypto.subtle) {
@@ -38,23 +40,23 @@ const Auth = (() => {
                || u.password === btoa(password);
         }
       } catch { valid = u.password === btoa(password); }
-      if (!valid) return { ok:false, error:'Невірний пароль' };
+      if (!valid) return { ok:false, error:tr('auth_wrong_password') };
       cur = username;
       Storage.set('session', username);
       return { ok:true };
     } catch(err) {
       console.error('[Auth.login]', err);
-      return { ok:false, error:'Помилка входу. Спробуй ще раз.' };
+      return { ok:false, error:tr('auth_error_login') };
     }
   };
 
   const register = async (name, username, password) => {
     try {
-      if (!name.trim()||!username.trim()||!password.trim()) return { ok:false, error:'Заповни всі поля' };
-      if (username.length<3) return { ok:false, error:'Логін мінімум 3 символи' };
-      if (password.length<4) return { ok:false, error:'Пароль мінімум 4 символи' };
+      if (!name.trim()||!username.trim()||!password.trim()) return { ok:false, error:tr('toast_fill_fields') };
+      if (username.length<3) return { ok:false, error:tr('auth_username_min') };
+      if (password.length<4) return { ok:false, error:tr('auth_password_min') };
       const users = Storage.get('users', {});
-      if (users[username]) return { ok:false, error:'Цей логін вже зайнятий' };
+      if (users[username]) return { ok:false, error:tr('auth_username_taken') };
 
       // Безпечне хешування з fallback: SHA-256 → btoa
       let hash;
@@ -74,7 +76,7 @@ const Auth = (() => {
       return { ok:true };
     } catch(err) {
       console.error('[Auth.register]', err);
-      return { ok:false, error:'Помилка реєстрації. Спробуй ще раз.' };
+      return { ok:false, error:tr('auth_error_register') };
     }
   };
 
@@ -168,7 +170,7 @@ const ExerciseDB = (() => {
    Programs
    ============================================================ */
 const Programs = (() => {
-  const DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+  const dayNames = () => [0,1,2,3,4,5,6].map(i => tr(`day_${i}`));
   const key   = () => `programs_${Auth.getUser()}`;
   const getAll= () => Storage.get(key(),[]);
   const save  = async (prog) => {
@@ -185,8 +187,101 @@ const Programs = (() => {
   };
   const getById = (id) => getAll().find(p=>p.id===id);
   const forDay  = (d)   => getAll().filter(p=>p.days&&p.days.includes(d));
-  const dayName = (i)   => DAY_NAMES[i];
-  return { getAll,save,remove,getById,forDay,dayName,DAY_NAMES };
+  const dayName = (i)   => dayNames()[i];
+  return { getAll,save,remove,getById,forDay,dayName, get DAY_NAMES() { return dayNames(); } };
+})();
+
+/* ============================================================
+   ProgramsManager (Import/Export & Popular)
+   ============================================================ */
+const ProgramsManager = (() => {
+  const getPopular = () => [
+    {
+      id: 'pop_ppl',
+      name: tr('pop_ppl_name'),
+      description: tr('pop_ppl_desc'),
+      days: [1, 3, 5],
+      exercises: [
+        { exerciseId: 'e1', sets: 4, reps: 8 },
+        { exerciseId: 'e6', sets: 3, reps: 6 },
+        { exerciseId: 'e22', sets: 4, reps: 8 }
+      ]
+    },
+    {
+      id: 'pop_arnold',
+      name: tr('pop_arnold_name'),
+      description: tr('pop_arnold_desc'),
+      days: [1, 2, 4, 5],
+      exercises: [
+        { exerciseId: 'e1', sets: 4, reps: 10 },
+        { exerciseId: 'e7', sets: 4, reps: 10 },
+        { exerciseId: 'e22', sets: 4, reps: 8 },
+        { exerciseId: 'e11', sets: 4, reps: 10 }
+      ]
+    },
+    {
+      id: 'pop_fullbody',
+      name: tr('pop_fullbody_name'),
+      description: tr('pop_fullbody_desc'),
+      days: [1, 3, 5],
+      exercises: [
+        { exerciseId: 'e22', sets: 3, reps: 10 },
+        { exerciseId: 'e1', sets: 3, reps: 10 },
+        { exerciseId: 'e8', sets: 3, reps: 10 }
+      ]
+    },
+    {
+      id: 'pop_bro',
+      name: tr('pop_bro_name'),
+      description: tr('pop_bro_desc'),
+      days: [1, 2, 3, 4, 5],
+      exercises: [
+        { exerciseId: 'e1', sets: 4, reps: 8 },
+        { exerciseId: 'e6', sets: 4, reps: 8 },
+        { exerciseId: 'e11', sets: 4, reps: 10 },
+        { exerciseId: 'e22', sets: 4, reps: 8 },
+        { exerciseId: 'e15', sets: 4, reps: 12 }
+      ]
+    }
+  ];
+
+  const exportJSON = () => {
+    const data = Programs.getAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gymplaner-programs-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJSON = (fileEvent) => {
+    const file = fileEvent.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (Array.isArray(data)) {
+          for (const prog of data) {
+            prog.id = `prog_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            await Programs.save(prog);
+          }
+          UI.toast(tr('import_success'));
+          Render.programs();
+        } else {
+          throw new Error('Not an array');
+        }
+      } catch (err) {
+        UI.toast(tr('import_error'));
+      }
+    };
+    reader.readAsText(file);
+    fileEvent.target.value = ''; // Reset input
+  };
+
+  return { getPopular, exportJSON, importJSON };
 })();
 
 /* ============================================================
@@ -314,7 +409,7 @@ const Timer = (() => {
   const fmt=(s)=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const render=()=>{
     dEl().textContent=fmt(remaining);
-    if(remaining===0){ wEl().classList.remove('running'); wEl().classList.add('finished'); bEl().textContent='▶'; UI.toast('⏱ Відпочинок завершено! 💪','info'); }
+    if(remaining===0){ wEl().classList.remove('running'); wEl().classList.add('finished'); bEl().textContent='▶'; UI.toast(tr('toast_rest_finished'),'info'); }
   };
   const start=()=>{
     if(remaining===0){remaining=total;render();}
@@ -359,19 +454,25 @@ UI._t=null;
    Charts
    ============================================================ */
 const Charts = (() => {
-  let wc=null,mc=null;
+  let wc=null,mc=null,rc=null;
   const def={ responsive:true,maintainAspectRatio:false, plugins:{ legend:{labels:{color:'#8a9ab5',font:{family:"'Barlow',sans-serif"}}}, tooltip:{backgroundColor:'#1f242e',titleColor:'#eef0f5',bodyColor:'#8a9ab5',borderColor:'#2a3040',borderWidth:1} }, scales:{ x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#505970',font:{family:"'Barlow',sans-serif"}}}, y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#505970',font:{family:"'Barlow',sans-serif"}}} } };
   const renderWeight=()=>{
     const d=Progress.getMeasurements().filter(m=>m.weight); const ctx=document.getElementById('weight-chart'); if(!ctx) return;
     if(wc) wc.destroy();
-    wc=new Chart(ctx,{type:'line',data:{labels:d.map(m=>m.date),datasets:[{label:'Вага (кг)',data:d.map(m=>m.weight),borderColor:'#f0a500',backgroundColor:'rgba(240,165,0,0.1)',tension:0.4,fill:true,pointBackgroundColor:'#f0a500',pointRadius:5}]},options:{...def}});
+    wc=new Chart(ctx,{type:'line',data:{labels:d.map(m=>m.date),datasets:[{label:tr('chart_weight'),data:d.map(m=>m.weight),borderColor:'#f0a500',backgroundColor:'rgba(240,165,0,0.1)',tension:0.4,fill:true,pointBackgroundColor:'#f0a500',pointRadius:5}]},options:{...def}});
   };
   const renderMeasurements=()=>{
     const d=Progress.getMeasurements(); const ctx=document.getElementById('measurements-chart'); if(!ctx) return;
     if(mc) mc.destroy();
-    mc=new Chart(ctx,{type:'line',data:{labels:d.map(m=>m.date),datasets:[ {label:'Груди',data:d.map(m=>m.chest||null),borderColor:'#00d4ff',tension:0.4,spanGaps:true}, {label:'Талія',data:d.map(m=>m.waist||null),borderColor:'#f0a500',tension:0.4,spanGaps:true}, {label:'Стегна',data:d.map(m=>m.hips||null),borderColor:'#ff4757',tension:0.4,spanGaps:true}, {label:'Біцепс',data:d.map(m=>m.bicep||null),borderColor:'#2ed573',tension:0.4,spanGaps:true} ]},options:{...def}});
+    mc=new Chart(ctx,{type:'line',data:{labels:d.map(m=>m.date),datasets:[ {label:tr('table_chest'),data:d.map(m=>m.chest||null),borderColor:'#00d4ff',tension:0.4,spanGaps:true}, {label:tr('table_waist'),data:d.map(m=>m.waist||null),borderColor:'#f0a500',tension:0.4,spanGaps:true}, {label:tr('table_hips'),data:d.map(m=>m.hips||null),borderColor:'#ff4757',tension:0.4,spanGaps:true}, {label:tr('table_bicep'),data:d.map(m=>m.bicep||null),borderColor:'#2ed573',tension:0.4,spanGaps:true} ]},options:{...def}});
   };
-  return { renderWeight,renderMeasurements };
+  const renderRecords=()=>{
+    const ctx=document.getElementById('records-chart'); if(!ctx) return;
+    const d=Progress.getRecords().slice().sort((a,b)=>(b.weight||0)-(a.weight||0));
+    if(rc) rc.destroy();
+    rc=new Chart(ctx,{type:'bar',data:{labels:d.map(r=>ExerciseDB.getById(r.exerciseId)?.name||tr('label_exercise')),datasets:[{label:tr('chart_records'),data:d.map(r=>r.weight),backgroundColor:'rgba(240,165,0,0.72)',borderColor:'#f0a500',borderWidth:1,borderRadius:6,barThickness:'flex',maxBarThickness:44}]},options:{...def,plugins:{...def.plugins,legend:{display:false},tooltip:{...def.plugins.tooltip,callbacks:{afterLabel:(item)=>{ const r=d[item.dataIndex]; return `${r.reps} ${tr('unit_reps_short')} · ${r.date}`; }}}},scales:{x:{...def.scales.x,ticks:{...def.scales.x.ticks,maxRotation:35,minRotation:0}},y:{...def.scales.y,beginAtZero:true,title:{display:true,text:tr('timer_kg'),color:'#8a9ab5',font:{family:"'Barlow',sans-serif"}}}}}});
+  };
+  return { renderWeight,renderMeasurements,renderRecords };
 })();
 
 /* ============================================================
@@ -393,42 +494,44 @@ const Render = (() => {
     // Today
     const today=(new Date().getDay()+6)%7; const todayProgs=Programs.forDay(today);
     const todayEl=document.getElementById('today-workouts');
-    todayEl.innerHTML=todayProgs.length?todayProgs.map(p=>`<div class="today-workout-item"><div><div class="today-workout-name">${p.name}</div><div class="today-workout-meta">${p.exercises?.length||0} вправ</div></div><button class="btn-primary" onclick="App.startSession('${p.id}')">Почати ▶</button></div>`).join(''):`<div class="empty-state"><span class="empty-icon">😴</span><p>Сьогодні немає запланованих тренувань</p><button class="btn-secondary" onclick="App.navigate('planner')">Скласти план</button></div>`;
+    todayEl.innerHTML=todayProgs.length?todayProgs.map(p=>`<div class="today-workout-item"><div><div class="today-workout-name">${p.name}</div><div class="today-workout-meta">${p.exercises?.length||0} ${tr('unit_exercises')}</div></div><button class="btn-primary" onclick="App.startSession('${p.id}')">${tr('btn_start')} ▶</button></div>`).join(''):`<div class="empty-state"><span class="empty-icon">😴</span><p>${tr('dash_no_today')}</p><button class="btn-secondary" onclick="App.navigate('planner')">${tr('dash_btn_make_plan')}</button></div>`;
     // Programs
     const dp=document.getElementById('dashboard-programs'); const top3=Programs.getAll().slice(0,3);
-    dp.innerHTML=top3.length?top3.map(p=>programCard(p)).join(''):`<div class="empty-state"><span class="empty-icon">📋</span><p>Ще немає програм</p></div>`;
+    dp.innerHTML=top3.length?top3.map(p=>programCard(p)).join(''):`<div class="empty-state"><span class="empty-icon">📋</span><p>${tr('dash_no_programs')}</p></div>`;
   };
 
-  const programCard=(p)=>`<div class="program-card"><div class="program-card-title">${p.name}</div><div class="program-card-desc">${p.description||''}</div><div class="program-card-days">${(p.days||[]).map(d=>`<span class="day-badge">${Programs.DAY_NAMES[d]}</span>`).join('')}</div><div class="program-card-exercises">${p.exercises?.length||0} вправ</div><div class="program-card-actions"><button class="btn-primary" onclick="App.startSession('${p.id}')">▶ Почати</button><button class="btn-secondary" onclick="App.editProgram('${p.id}')">✎ Редагувати</button><button class="btn-ghost" onclick="App.deleteProgram('${p.id}')">🗑</button></div></div>`;
+  const programCard=(p)=>`<div class="program-card"><div class="program-card-title">${p.name}</div><div class="program-card-desc">${p.description||''}</div><div class="program-card-days">${(p.days||[]).map(d=>`<span class="day-badge">${Programs.DAY_NAMES[d]}</span>`).join('')}</div><div class="program-card-exercises">${p.exercises?.length||0} ${tr('unit_exercises')}</div><div class="program-card-actions"><button class="btn-primary" onclick="App.startSession('${p.id}')">▶ ${tr('btn_start')}</button><button class="btn-secondary" onclick="App.editProgram('${p.id}')">✎ ${tr('btn_edit')}</button><button class="btn-ghost" onclick="App.deleteProgram('${p.id}')">🗑</button></div></div>`;
 
   const programs=()=>{ const el=document.getElementById('programs-list'); el.innerHTML=Programs.getAll().map(p=>programCard(p)).join(''); };
 
   const exercises=(group='all',search='')=>{
     const list=ExerciseDB.filter(group,search); const el=document.getElementById('exercises-list');
-    el.innerHTML=list.length?list.map(e=>`<div class="exercise-card" onclick="App.showExerciseDetail('${e.id}')"><div class="exercise-card-name">${e.name}</div><span class="exercise-card-group">${ExerciseDB.groupName(e.group)}</span>${e.custom?'<div class="exercise-card-custom">⭐ Своя вправа</div>':''}</div>`).join(''):`<div class="empty-state"><span class="empty-icon">🔍</span><p>Нічого не знайдено</p></div>`;
+    el.innerHTML=list.length?list.map(e=>`<div class="exercise-card" onclick="App.showExerciseDetail('${e.id}')"><div class="exercise-card-name">${e.name}</div><span class="exercise-card-group">${ExerciseDB.groupName(e.group)}</span>${e.custom?`<div class="exercise-card-custom">⭐ ${tr('custom_exercise_badge')}</div>`:''}</div>`).join(''):`<div class="empty-state"><span class="empty-icon">🔍</span><p>${tr('empty_no_results')}</p></div>`;
   };
 
   const calendar=(year,month)=>{
     const el=document.getElementById('calendar-grid'); const label=document.getElementById('cal-month-label');
-    const months=['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+    const months=Array.from({length:12},(_,i)=>tr(`month_${i}`));
     label.textContent=`${months[month]} ${year}`;
     const today=new Date(); const firstDay=new Date(year,month,1); let startDow=(firstDay.getDay()+6)%7;
     const dim=new Date(year,month+1,0).getDate(); const logs=WorkoutLog.getAll();
-    let html=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'].map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+    let html=Programs.DAY_NAMES.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
     for(let i=0;i<startDow;i++) html+=`<div class="cal-day empty"></div>`;
     for(let d=1;d<=dim;d++){
       const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday=(d===today.getDate()&&month===today.getMonth()&&year===today.getFullYear());
+      const isAttended = window.Automation && window.Automation.getAttendanceLog().includes(ds);
       const dl=logs.filter(l=>l.date===ds); const hasDone=dl.some(l=>l.done); const hasP=dl.some(l=>!l.done);
-      const cls=['cal-day',isToday?'today':'',hasDone?'completed':(hasP?'has-workout':'')].filter(Boolean).join(' ');
-      html+=`<div class="${cls}" onclick="App.showDayLog('${ds}')">${d}</div>`;
+      const cls=['cal-day',isToday?'today':'',hasDone?'completed':(hasP?'has-workout':''), isAttended?'attended':''].filter(Boolean).join(' ');
+      const attIcon = isAttended ? `<div style="font-size:10px; position:absolute; bottom:2px; right:4px;" title="${tr('toast_attend_success')}">📍</div>` : '';
+      html+=`<div class="${cls}" onclick="App.showDayLog('${ds}')" style="position:relative;">${d}${attIcon}</div>`;
     }
     el.innerHTML=html; workoutLog();
   };
 
   const workoutLog=()=>{
     const logs=WorkoutLog.getAll().slice(0,20); const el=document.getElementById('workout-log');
-    el.innerHTML=logs.length?logs.map(l=>`<div class="log-item"><span class="log-date">${l.date}</span><span class="log-name">${l.programName}</span><span class="log-status ${l.done?'done':'planned'}">${l.done?'✓ Виконано':'Заплановано'}</span><button class="btn-ghost" onclick="WorkoutLog.remove(${l.id}).then(()=>Render.calendar(App.calYear,App.calMonth))">🗑</button></div>`).join(''):`<div class="empty-state"><span class="empty-icon">📭</span><p>Журнал порожній</p></div>`;
+    el.innerHTML=logs.length?logs.map(l=>`<div class="log-item"><span class="log-date">${l.date}</span><span class="log-name">${l.programName}</span><span class="log-status ${l.done?'done':'planned'}">${l.done?tr('cal_status_done'):tr('cal_status_planned')}</span><button class="btn-ghost" onclick="WorkoutLog.remove(${l.id}).then(()=>Render.calendar(App.calYear,App.calMonth))">🗑</button></div>`).join(''):`<div class="empty-state"><span class="empty-icon">📭</span><p>${tr('cal_log_empty')}</p></div>`;
   };
 
   const profile=()=>{
@@ -444,28 +547,29 @@ const Render = (() => {
     Timer.setTotal(tv);
   };
 
-  const progress=()=>{ Charts.renderWeight(); Charts.renderMeasurements(); weightHistory(); measurementsHistory(); records(); };
+  const progress=()=>{ Charts.renderWeight(); Charts.renderMeasurements(); Charts.renderRecords(); weightHistory(); measurementsHistory(); records(); };
 
   const weightHistory=()=>{
     const d=Progress.getMeasurements().slice().reverse(); const el=document.getElementById('weight-history');
-    if(!d.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">⚖️</span><p>Немає записів ваги</p></div>`;return;}
-    el.innerHTML=`<table class="data-table"><thead><tr><th>Дата</th><th>Вага (кг)</th><th></th></tr></thead><tbody>${d.map(m=>`<tr><td>${m.date}</td><td>${m.weight||'—'}</td><td><button class="del-btn" onclick="Progress.delMeasurement(${m.id});Render.progress()">🗑</button></td></tr>`).join('')}</tbody></table>`;
+    if(!d.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">⚖️</span><p>${tr('prog_no_weight')}</p></div>`;return;}
+    el.innerHTML=`<table class="data-table"><thead><tr><th>${tr('table_date')}</th><th>${tr('table_weight')}</th><th></th></tr></thead><tbody>${d.map(m=>`<tr><td>${m.date}</td><td>${m.weight||'—'}</td><td><button class="del-btn" onclick="Progress.delMeasurement(${m.id});Render.progress()">🗑</button></td></tr>`).join('')}</tbody></table>`;
   };
 
   const measurementsHistory=()=>{
     const d=Progress.getMeasurements().slice().reverse(); const el=document.getElementById('measurements-history');
-    if(!d.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">📏</span><p>Немає вимірів</p></div>`;return;}
-    el.innerHTML=`<table class="data-table"><thead><tr><th>Дата</th><th>Груди</th><th>Талія</th><th>Стегна</th><th>Біцепс</th><th></th></tr></thead><tbody>${d.map(m=>`<tr><td>${m.date}</td><td>${m.chest||'—'}</td><td>${m.waist||'—'}</td><td>${m.hips||'—'}</td><td>${m.bicep||'—'}</td><td><button class="del-btn" onclick="Progress.delMeasurement(${m.id});Render.progress()">🗑</button></td></tr>`).join('')}</tbody></table>`;
+    if(!d.length){el.innerHTML=`<div class="empty-state"><span class="empty-icon">📏</span><p>${tr('prog_no_meas')}</p></div>`;return;}
+    el.innerHTML=`<table class="data-table"><thead><tr><th>${tr('table_date')}</th><th>${tr('table_chest')}</th><th>${tr('table_waist')}</th><th>${tr('table_hips')}</th><th>${tr('table_bicep')}</th><th></th></tr></thead><tbody>${d.map(m=>`<tr><td>${m.date}</td><td>${m.chest||'—'}</td><td>${m.waist||'—'}</td><td>${m.hips||'—'}</td><td>${m.bicep||'—'}</td><td><button class="del-btn" onclick="Progress.delMeasurement(${m.id});Render.progress()">🗑</button></td></tr>`).join('')}</tbody></table>`;
   };
 
   const records=()=>{
+    Charts.renderRecords();
     const d=Progress.getRecords(); const el=document.getElementById('records-list');
-    el.innerHTML=d.length?d.map(r=>{ const ex=ExerciseDB.getById(r.exerciseId); return `<div class="record-card"><div class="record-exercise">${ex?.name||'Вправа'}</div><div class="record-value">${r.weight} кг</div><div class="record-meta">${r.reps} повт. · ${r.date}</div><button class="del-btn" style="background:none;color:var(--text-muted);font-size:12px;margin-top:8px" onclick="Progress.delRecord(${r.id});Render.records()">видалити</button></div>`; }).join(''):`<div class="empty-state"><span class="empty-icon">🥇</span><p>Немає рекордів</p></div>`;
+    el.innerHTML=d.length?d.map(r=>{ const ex=ExerciseDB.getById(r.exerciseId); return `<div class="record-card"><div class="record-exercise">${ex?.name||tr('label_exercise')}</div><div class="record-value">${r.weight} ${tr('timer_kg')}</div><div class="record-meta">${r.reps} ${tr('unit_reps_short')} · ${r.date}</div><button class="del-btn" style="background:none;color:var(--text-muted);font-size:12px;margin-top:8px" onclick="Progress.delRecord(${r.id});Render.records()">${tr('btn_delete')}</button></div>`; }).join(''):`<div class="empty-state"><span class="empty-icon">🥇</span><p>${tr('prog_no_records')}</p></div>`;
   };
 
   const achievements=()=>{
     const list=Achievements.getAll(); const el=document.getElementById('achievements-grid');
-    el.innerHTML=list.map(a=>`<div class="achievement-card ${a.unlockedAt?'unlocked':'locked'}"><span class="achievement-icon">${a.icon}</span><div class="achievement-name">${a.name}</div><div class="achievement-desc">${a.desc}</div>${a.unlockedAt?`<div class="achievement-date">✓ ${a.unlockedAt}</div>`:'<div class="achievement-date">🔒 Заблоковано</div>'}</div>`).join('');
+    el.innerHTML=list.map(a=>`<div class="achievement-card ${a.unlockedAt?'unlocked':'locked'}"><span class="achievement-icon">${a.icon}</span><div class="achievement-name">${a.name}</div><div class="achievement-desc">${a.desc}</div>${a.unlockedAt?`<div class="achievement-date">✓ ${a.unlockedAt}</div>`:`<div class="achievement-date">🔒 ${tr('empty_locked')}</div>`}</div>`).join('');
   };
 
   return { dashboard,programs,exercises,calendar,workoutLog,profile,progress,weightHistory,measurementsHistory,records,achievements,programCard };
@@ -499,10 +603,11 @@ const App = (() => {
   const init=()=>{
     if(Auth.restoreSession()) showApp();
     else showAuth();
+    if(window.Automation) window.Automation.init();
     bindEvents();
   };
 
-  const showAuth=()=>{ document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); };
+  const showAuth=()=>{ document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); window.I18n?.translateDOM(); };
   const showApp =async()=>{
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -512,6 +617,7 @@ const App = (() => {
     if(window.Notifications) window.Notifications.init();
     if(window.Security)      window.Security.initAutoBackup(Auth.getUser());
     await updateSidebarXP();
+    window.I18n?.translateDOM();
     navigate('dashboard');
     if(window.PWA) window.PWA.dispatchReady();
   };
@@ -538,12 +644,12 @@ const App = (() => {
     // Sync status
     if(window.Sync){
       const s=window.Sync.getStatus();
-      const modeEl=document.getElementById('sync-mode-label'); if(modeEl) modeEl.textContent=s.hasRemote?'Хмарний':'Локальний';
+      const modeEl=document.getElementById('sync-mode-label'); if(modeEl) modeEl.textContent=s.hasRemote?tr('sync_cloud'):tr('sync_local');
       const stEl=document.getElementById('sync-state-label');  if(stEl)  stEl.textContent=s.status;
     }
     // SW status
     const swEl=document.getElementById('pwa-sw-status');
-    if(swEl) swEl.textContent=('serviceWorker' in navigator)?'Активний ✓':'Не підтримується';
+    if(swEl) swEl.textContent=('serviceWorker' in navigator)?tr('sw_active'):tr('sw_unsupported');
   };
 
   /* ---- Gamification page ---- */
@@ -558,7 +664,7 @@ const App = (() => {
     if(window.Social){
       const pp=await window.Social.buildPublicProfile(Auth.getUser());
       const el=document.getElementById('public-profile-container');
-      if(el) el.innerHTML=`<div class="card"><div class="gami-level-title">${pp.levelIcon} ${pp.displayName}</div><div style="color:var(--text-secondary);font-size:13px;margin-top:8px">Рівень ${pp.level} — ${pp.levelName}</div><div style="margin-top:12px;display:flex;gap:20px"><div><strong>${pp.stats.totalWorkouts}</strong><div style="font-size:11px;color:var(--text-muted)">Тренувань</div></div><div><strong>${pp.stats.totalRecords}</strong><div style="font-size:11px;color:var(--text-muted)">Рекордів</div></div><div><strong>${pp.stats.streak}</strong><div style="font-size:11px;color:var(--text-muted)">Streak</div></div></div></div>`;
+      if(el) el.innerHTML=`<div class="card"><div class="gami-level-title">${pp.levelIcon} ${pp.displayName}</div><div style="color:var(--text-secondary);font-size:13px;margin-top:8px">${tr('profile_level')} ${pp.level} — ${pp.levelName}</div><div style="margin-top:12px;display:flex;gap:20px"><div><strong>${pp.stats.totalWorkouts}</strong><div style="font-size:11px;color:var(--text-muted)">${tr('social_workouts')}</div></div><div><strong>${pp.stats.totalRecords}</strong><div style="font-size:11px;color:var(--text-muted)">${tr('social_records')}</div></div><div><strong>${pp.stats.streak}</strong><div style="font-size:11px;color:var(--text-muted)">Streak</div></div></div></div>`;
       const visEl=document.getElementById('profile-visibility-select');
       if(visEl) visEl.value=pp.isPublic?'public':'private';
     }
@@ -568,19 +674,36 @@ const App = (() => {
   const renderSettingsPage=()=>{
     if(window.Notifications) window.Notifications.renderSettingsPanel('notifications-settings-panel');
     if(window.Security)      window.Security.renderBackupPanel('backup-panel',Auth.getUser());
+    // Automation API
+    if(window.Automation) {
+      const token = window.Automation.getToken();
+      const input = document.getElementById('api-webhook-url');
+      if (input && token) {
+        const url = new URL(window.location.href);
+        url.hash = '';
+        url.search = `?action=attend&token=${token}`;
+        input.value = url.toString();
+      }
+    }
     // PWA info
     const dmEl=document.getElementById('pwa-display-mode');
-    if(dmEl) dmEl.textContent=window.matchMedia('(display-mode:standalone)').matches?'Standalone (PWA)':'Browser';
+    if(dmEl) dmEl.textContent=window.matchMedia('(display-mode:standalone)').matches?tr('pwa_standalone'):tr('pwa_browser');
     const swEl=document.getElementById('pwa-sw-status');
-    if(swEl) swEl.textContent=('serviceWorker' in navigator)?'Активний ✓':'Не підтримується';
+    if(swEl) swEl.textContent=('serviceWorker' in navigator)?tr('sw_active'):tr('sw_unsupported');
   };
 
   const closeSidebar=()=>{ document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.add('hidden'); };
 
+  const rerenderActivePage=()=>{
+    window.I18n?.translateDOM();
+    const active=document.querySelector('.page.active')?.id?.replace('page-','');
+    if(active) navigate(active);
+  };
+
   /* ---- Program Modal ---- */
   const openProgramModal=(id)=>{
     editingProgId=id; tempExercises=[];
-    document.getElementById('modal-program-title').textContent=id?'Редагувати програму':'Нова програма';
+    document.getElementById('modal-program-title').textContent=id?tr('mod_prog_edit'):tr('mod_prog_new');
     if(id){ const p=Programs.getById(id); document.getElementById('prog-name').value=p.name; document.getElementById('prog-desc').value=p.description||''; document.querySelectorAll('#days-picker input').forEach(cb=>cb.checked=p.days?.includes(parseInt(cb.value))); tempExercises=[...(p.exercises||[])]; }
     else  { document.getElementById('prog-name').value=''; document.getElementById('prog-desc').value=''; document.querySelectorAll('#days-picker input').forEach(cb=>cb.checked=false); }
     renderProgExercises(); UI.openModal('modal-program');
@@ -588,19 +711,19 @@ const App = (() => {
 
   const renderProgExercises=()=>{
     const el=document.getElementById('prog-exercises-list');
-    el.innerHTML=tempExercises.map((ex,i)=>{ const e=ExerciseDB.getById(ex.exerciseId); return `<div class="prog-ex-item"><div class="prog-ex-info"><div class="prog-ex-name">${e?.name||'Вправа'}</div><div class="prog-ex-meta">${ex.sets} підх. × ${ex.reps} повт. · ${ex.weight} кг</div>${ex.comment?`<div class="prog-ex-comment">${ex.comment}</div>`:''}</div><button class="prog-ex-del" onclick="App._delTempEx(${i})">✕</button></div>`; }).join('');
+    el.innerHTML=tempExercises.map((ex,i)=>{ const e=ExerciseDB.getById(ex.exerciseId); return `<div class="prog-ex-item"><div class="prog-ex-info"><div class="prog-ex-name">${e?.name||tr('label_exercise')}</div><div class="prog-ex-meta">${ex.sets} ${tr('unit_sets_short')} × ${ex.reps} ${tr('unit_reps_short')} · ${ex.weight} ${tr('timer_kg')}</div>${ex.comment?`<div class="prog-ex-comment">${ex.comment}</div>`:''}</div><button class="prog-ex-del" onclick="App._delTempEx(${i})">✕</button></div>`; }).join('');
   };
 
   const _delTempEx=(i)=>{ tempExercises.splice(i,1); renderProgExercises(); };
 
   const saveProgram=async()=>{
     const name=document.getElementById('prog-name').value.trim();
-    if(!name){ UI.toast('Введи назву програми','error'); return; }
+    if(!name){ UI.toast(tr('toast_enter_name'),'error'); return; }
     const days=Array.from(document.querySelectorAll('#days-picker input:checked')).map(cb=>parseInt(cb.value));
     const prog={ id:editingProgId||`prog_${Date.now()}`, name, description:document.getElementById('prog-desc').value.trim(), days, exercises:[...tempExercises], username:Auth.getUser(), createdAt:editingProgId?Programs.getById(editingProgId)?.createdAt:Date.now() };
     await Programs.save(prog); UI.closeModal('modal-program'); Render.programs(); Achievements.check();
     if(window.Gamification) await window.Gamification.awardXP(Auth.getUser(),'create_program');
-    UI.toast(`Програму "${name}" збережено ✓`); await updateSidebarXP();
+    UI.toast(tr('toast_program_saved', { name })); await updateSidebarXP();
   };
 
   /* ---- Session ---- */
@@ -610,8 +733,8 @@ const App = (() => {
     const container=document.getElementById('session-exercises');
     container.innerHTML=(prog.exercises||[]).map((ex,ei)=>{
       const exData=ExerciseDB.getById(ex.exerciseId);
-      const setsHtml=Array.from({length:ex.sets},(_,si)=>`<div class="session-set" id="set-${ei}-${si}"><span class="session-set-num">${si+1}</span><div class="session-set-label"><input type="number" class="set-reps" value="${ex.reps}" min="0" /><small>Повт.</small></div><div class="session-set-label"><input type="number" class="set-weight" value="${ex.weight}" step="2.5" min="0" /><small>Кг</small></div><button class="session-set-done" onclick="App._toggleSetDone(${ei},${si})" title="Виконано">✓</button></div>`).join('');
-      return `<div class="session-exercise"><div class="session-ex-header"><span class="session-ex-name">${exData?.name||'Вправа'}</span><span style="font-size:12px;color:var(--text-muted)">${ex.sets}×${ex.reps}</span></div>${ex.comment?`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-style:italic">${ex.comment}</p>`:''}<div class="session-sets">${setsHtml}</div></div>`;
+      const setsHtml=Array.from({length:ex.sets},(_,si)=>`<div class="session-set" id="set-${ei}-${si}"><span class="session-set-num">${si+1}</span><div class="session-set-label"><input type="number" class="set-reps" value="${ex.reps}" min="0" /><small>${tr('timer_reps')}</small></div><div class="session-set-label"><input type="number" class="set-weight" value="${ex.weight}" step="2.5" min="0" /><small>${tr('timer_kg')}</small></div><button class="session-set-done" onclick="App._toggleSetDone(${ei},${si})" title="${tr('btn_done')}">✓</button></div>`).join('');
+      return `<div class="session-exercise"><div class="session-ex-header"><span class="session-ex-name">${exData?.name||tr('label_exercise')}</span><span style="font-size:12px;color:var(--text-muted)">${ex.sets}×${ex.reps}</span></div>${ex.comment?`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-style:italic">${ex.comment}</p>`:''}<div class="session-sets">${setsHtml}</div></div>`;
     }).join('');
     UI.openModal('modal-session');
   };
@@ -622,12 +745,16 @@ const App = (() => {
     if(!activeSessionProg) return;
     await WorkoutLog.add({ programName:activeSessionProg.name, programId:activeSessionProg.id, exercises:activeSessionProg.exercises||[], done:true });
     UI.closeModal('modal-session'); await navigate('dashboard');
-    UI.toast(`Тренування "${activeSessionProg.name}" завершено! 💪`);
+    UI.toast(tr('toast_session_finished', { name: activeSessionProg.name }));
     activeSessionProg=null; await updateSidebarXP();
   };
 
   /* ---- Bind events ---- */
   const bindEvents=()=>{
+    document.querySelectorAll('[data-lang-btn]').forEach(btn=>btn.addEventListener('click',()=>window.I18n?.setLanguage(btn.dataset.langBtn)));
+    document.getElementById('language-select')?.addEventListener('change',e=>window.I18n?.setLanguage(e.target.value));
+    window.I18n?.onLanguageChange(rerenderActivePage);
+
     /* Auth */
     document.querySelectorAll('.auth-tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active')); btn.classList.add('active'); document.getElementById(`${btn.dataset.tab}-form`).classList.add('active'); }));
     document.getElementById('login-form').addEventListener('submit', async e => {
@@ -638,17 +765,17 @@ const App = (() => {
       const p = document.getElementById('login-password').value;
       errEl.textContent = '';
       btn.disabled = true;
-      btn.textContent = 'Входжу...';
+      btn.textContent = tr('status_loading_login');
       try {
         const res = await Auth.login(u, p);
         if (res.ok) { showApp(); }
         else { errEl.textContent = res.error; }
       } catch(err) {
-        errEl.textContent = 'Помилка входу. Спробуй ще раз.';
+        errEl.textContent = tr('auth_error_login');
         console.error('[login submit]', err);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Увійти';
+        btn.textContent = tr('auth_btn_login');
       }
     });
     document.getElementById('register-form').addEventListener('submit', async e => {
@@ -660,17 +787,17 @@ const App = (() => {
       const p = document.getElementById('reg-password').value;
       errEl.textContent = '';
       btn.disabled = true;
-      btn.textContent = 'Зачекай...';
+      btn.textContent = tr('status_loading_register');
       try {
         const res = await Auth.register(n, u, p);
         if (res.ok) { showApp(); }
         else { errEl.textContent = res.error; }
       } catch(err) {
-        errEl.textContent = 'Помилка. Перевір консоль.';
+        errEl.textContent = tr('auth_error_register');
         console.error('[register submit]', err);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Зареєструватись';
+        btn.textContent = tr('auth_btn_register');
       }
     });
     document.getElementById('btn-logout').addEventListener('click',()=>{ Auth.logout(); showAuth(); });
@@ -695,42 +822,57 @@ const App = (() => {
       renderProgExercises(); UI.closeModal('modal-add-exercise');
     });
     document.getElementById('btn-save-program').addEventListener('click',saveProgram);
-    document.getElementById('btn-export-json').addEventListener('click',exportJSON);
-    document.getElementById('import-json-input').addEventListener('change',importJSON);
+    document.getElementById('btn-export-json').addEventListener('click',ProgramsManager.exportJSON);
+    document.getElementById('import-json-input').addEventListener('change',ProgramsManager.importJSON);
+    document.getElementById('btn-popular-programs')?.addEventListener('click',()=>{
+      const list = document.getElementById('popular-programs-list');
+      list.innerHTML = ProgramsManager.getPopular().map(p => `
+        <div class="program-card">
+          <div class="program-card-title">${p.name}</div>
+          <div class="program-card-desc" style="font-size:0.9rem; margin-bottom:12px; color:var(--text-muted);">${p.description}</div>
+          <div class="program-card-days">${p.days.map(d=>`<span class="day-badge">${Programs.DAY_NAMES[d]}</span>`).join('')}</div>
+          <div class="program-card-exercises">${p.exercises.length} ${tr('unit_exercises')}</div>
+          <div class="program-card-actions">
+            <button class="btn-primary" onclick="App.addPopularProgram('${p.id}')">+ ${tr('btn_add_popular')}</button>
+          </div>
+        </div>
+      `).join('');
+      UI.openModal('modal-popular');
+    });
     /* Exercises */
     document.getElementById('exercise-search').addEventListener('input',e=>{ const t=document.querySelector('.muscle-tab.active'); Render.exercises(t?.dataset.group||'all',e.target.value); });
     document.querySelectorAll('.muscle-tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.muscle-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); Render.exercises(btn.dataset.group,document.getElementById('exercise-search').value); }));
     document.getElementById('btn-add-custom-exercise').addEventListener('click',()=>UI.openModal('modal-custom-exercise'));
     document.getElementById('btn-save-custom-exercise').addEventListener('click',()=>{
       const name=document.getElementById('ce-name').value.trim(),group=document.getElementById('ce-group').value,desc=document.getElementById('ce-desc').value.trim();
-      if(!name){ UI.toast('Введи назву вправи','error'); return; }
-      ExerciseDB.addCustom(name,group,desc); UI.closeModal('modal-custom-exercise'); Render.exercises(); UI.toast('Вправу додано ✓');
+      if(!name){ UI.toast(tr('toast_enter_ex_name'),'error'); return; }
+      ExerciseDB.addCustom(name,group,desc); UI.closeModal('modal-custom-exercise'); Render.exercises(); UI.toast(tr('toast_exercise_added'));
     });
     /* Calendar */
     document.getElementById('cal-prev').addEventListener('click',()=>{ calMonth--; if(calMonth<0){calMonth=11;calYear--;} Render.calendar(calYear,calMonth); });
     document.getElementById('cal-next').addEventListener('click',()=>{ calMonth++; if(calMonth>11){calMonth=0;calYear++;} Render.calendar(calYear,calMonth); });
     /* Progress */
-    document.querySelectorAll('.progress-tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.progress-tab').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.progress-panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); document.getElementById(`ptab-${btn.dataset.ptab}`).classList.add('active'); if(btn.dataset.ptab==='weight') Charts.renderWeight(); if(btn.dataset.ptab==='measurements') Charts.renderMeasurements(); }));
+    document.querySelectorAll('.progress-tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.progress-tab').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.progress-panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); document.getElementById(`ptab-${btn.dataset.ptab}`).classList.add('active'); if(btn.dataset.ptab==='weight') Charts.renderWeight(); if(btn.dataset.ptab==='measurements') Charts.renderMeasurements(); if(btn.dataset.ptab==='records') Charts.renderRecords(); }));
     document.getElementById('btn-add-measurement').addEventListener('click',()=>{ document.getElementById('meas-date').value=new Date().toISOString().split('T')[0]; UI.openModal('modal-measurement'); });
     document.getElementById('btn-save-measurement').addEventListener('click',()=>{
-      const date=document.getElementById('meas-date').value; if(!date){UI.toast('Вибери дату','error');return;}
+      const date=document.getElementById('meas-date').value; if(!date){UI.toast(tr('toast_select_date'),'error');return;}
       Progress.addMeasurement({ date, weight:parseFloat(document.getElementById('meas-weight').value)||null, chest:parseFloat(document.getElementById('meas-chest').value)||null, waist:parseFloat(document.getElementById('meas-waist').value)||null, hips:parseFloat(document.getElementById('meas-hips').value)||null, bicep:parseFloat(document.getElementById('meas-bicep').value)||null });
-      UI.closeModal('modal-measurement'); Render.progress(); UI.toast('Заміри збережено ✓');
+      UI.closeModal('modal-measurement'); Render.progress(); UI.toast(tr('toast_measurements_saved'));
     });
     document.getElementById('btn-add-record').addEventListener('click',()=>{ populateExerciseSelect('rec-exercise'); document.getElementById('rec-date').value=new Date().toISOString().split('T')[0]; UI.openModal('modal-record'); });
     document.getElementById('btn-save-record').addEventListener('click',()=>{
       const exerciseId=document.getElementById('rec-exercise').value, weight=parseFloat(document.getElementById('rec-weight').value), reps=parseInt(document.getElementById('rec-reps').value)||1, date=document.getElementById('rec-date').value;
-      if(!weight||!date){UI.toast('Заповни всі поля','error');return;}
-      Progress.addRecord({exerciseId,weight,reps,date}); UI.closeModal('modal-record'); Render.records(); UI.toast('Рекорд збережено 🥇');
+      if(!weight||!date){UI.toast(tr('toast_fill_fields'),'error');return;}
+      Progress.addRecord({exerciseId,weight,reps,date}); UI.closeModal('modal-record'); Render.records(); UI.toast(tr('toast_record_saved'));
     });
     /* Profile */
     document.getElementById('btn-save-profile').addEventListener('click',()=>{
       const p={name:document.getElementById('profile-name').value.trim(),age:document.getElementById('profile-age').value,height:document.getElementById('profile-height').value,goal:document.getElementById('profile-goal').value,level:document.getElementById('profile-level').value,avatar:Storage.get(`profile_${Auth.getUser()}`,{}).avatar||''};
-      Storage.set(`profile_${Auth.getUser()}`,p); UI.toast('Профіль збережено ✓'); Render.dashboard();
+      Storage.set(`profile_${Auth.getUser()}`,p); UI.toast(tr('toast_profile_saved')); Render.dashboard();
     });
     document.getElementById('avatar-upload').addEventListener('change',e=>{
       const file=e.target.files[0]; if(!file) return;
-      const r=new FileReader(); r.onload=ev=>{ const d=ev.target.result; const p=Storage.get(`profile_${Auth.getUser()}`,{}); p.avatar=d; Storage.set(`profile_${Auth.getUser()}`,p); document.getElementById('avatar-preview').innerHTML=`<img src="${d}">`; UI.toast('Фото оновлено ✓'); Render.dashboard(); }; r.readAsDataURL(file);
+      const r=new FileReader(); r.onload=ev=>{ const d=ev.target.result; const p=Storage.get(`profile_${Auth.getUser()}`,{}); p.avatar=d; Storage.set(`profile_${Auth.getUser()}`,p); document.getElementById('avatar-preview').innerHTML=`<img src="${d}">`; UI.toast(tr('toast_avatar_updated')); Render.dashboard(); }; r.readAsDataURL(file);
     });
     document.getElementById('timer-default-range').addEventListener('input',e=>{ const v=parseInt(e.target.value); document.getElementById('timer-val-display').textContent=v; Storage.set(`timer_${Auth.getUser()}`,v); Timer.setTotal(v); });
     /* Session */
@@ -738,21 +880,33 @@ const App = (() => {
     document.getElementById('btn-export-pdf').addEventListener('click',()=>UI.exportToPDF(document.getElementById('modal-session').querySelector('.modal'),'workout-plan.pdf'));
     /* Social tabs */
     document.querySelectorAll('.social-tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.social-tab').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.social-panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); document.getElementById(`stab-${btn.dataset.stab}`).classList.add('active'); if(btn.dataset.stab==='leaderboard'&&window.Social) window.Social.renderLeaderboard('leaderboard-container'); }));
-    document.getElementById('btn-save-visibility')?.addEventListener('click',()=>{ const v=document.getElementById('profile-visibility-select').value; if(window.Social) window.Social.setProfileVisibility(Auth.getUser(),v==='public'); UI.toast('Налаштування збережено ✓'); });
-    document.getElementById('btn-compare')?.addEventListener('click',async()=>{ const u2=document.getElementById('compare-username-input').value.trim(); if(!u2){UI.toast('Введи логін','error');return;} if(window.Social) await window.Social.renderComparison('compare-container',Auth.getUser(),u2); });
+    document.getElementById('btn-save-visibility')?.addEventListener('click',()=>{ const v=document.getElementById('profile-visibility-select').value; if(window.Social) window.Social.setProfileVisibility(Auth.getUser(),v==='public'); UI.toast(tr('toast_settings_saved')); });
+    document.getElementById('btn-compare')?.addEventListener('click',async()=>{ const u2=document.getElementById('compare-username-input').value.trim(); if(!u2){UI.toast(tr('toast_enter_username'),'error');return;} if(window.Social) await window.Social.renderComparison('compare-container',Auth.getUser(),u2); });
     /* AI page */
     document.getElementById('btn-refresh-ai')?.addEventListener('click',()=>renderAIPage());
-    document.getElementById('btn-calc-1rm')?.addEventListener('click',()=>{ const w=parseFloat(document.getElementById('calc-weight').value),r=parseInt(document.getElementById('calc-reps').value); if(window.AIEngine&&w&&r){ const rm=window.AIEngine.calculate1RM(w,r); document.getElementById('calc-result').value=rm+' кг'; } });
-    document.getElementById('btn-force-sync')?.addEventListener('click',async()=>{ if(window.Sync){ await window.Sync.flushQueue(); UI.toast('Синхронізацію завершено ✓'); } else UI.toast('Синхронізація недоступна','info'); });
-    document.getElementById('btn-clear-cache')?.addEventListener('click',()=>{ navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_CACHE'}); UI.toast('Кеш очищено ✓'); });
+    document.getElementById('btn-calc-1rm')?.addEventListener('click',()=>{ const w=parseFloat(document.getElementById('calc-weight').value),r=parseInt(document.getElementById('calc-reps').value); if(window.AIEngine&&w&&r){ const rm=window.AIEngine.calculate1RM(w,r); document.getElementById('calc-result').value=rm+' '+tr('timer_kg'); } });
+    document.getElementById('btn-force-sync')?.addEventListener('click',async()=>{ if(window.Sync){ await window.Sync.flushQueue(); UI.toast(tr('toast_sync_done')); } else UI.toast(tr('toast_sync_unavailable'),'info'); });
+    document.getElementById('btn-clear-cache')?.addEventListener('click',()=>{ navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_CACHE'}); UI.toast(tr('toast_cache_cleared')); });
     /* Settings */
-    document.getElementById('btn-install-pwa')?.addEventListener('click',()=>{ if(window.PWA&&window.PWA.isInstallable()) window.PWA.triggerInstall(); else UI.toast('Додаток вже встановлено або браузер не підтримує','info'); });
-    document.getElementById('btn-clear-cache-settings')?.addEventListener('click',()=>{ navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_CACHE'}); UI.toast('Кеш очищено ✓'); });
+    document.getElementById('btn-copy-webhook')?.addEventListener('click', () => {
+      const input = document.getElementById('api-webhook-url');
+      if (input && input.value) {
+        navigator.clipboard.writeText(input.value).then(() => UI.toast(tr('toast_copied')));
+      }
+    });
+    document.getElementById('btn-generate-webhook')?.addEventListener('click', () => {
+      if (window.Automation) {
+        window.Automation.generateNewToken();
+        renderSettingsPage();
+      }
+    });
+    document.getElementById('btn-install-pwa')?.addEventListener('click',()=>{ if(window.PWA&&window.PWA.isInstallable()) window.PWA.triggerInstall(); else UI.toast(tr('toast_pwa_not_supported'),'info'); });
+    document.getElementById('btn-clear-cache-settings')?.addEventListener('click',()=>{ navigator.serviceWorker?.controller?.postMessage({type:'CLEAR_CACHE'}); UI.toast(tr('toast_cache_cleared')); });
     document.getElementById('btn-clear-data')?.addEventListener('click',()=>{
-      if(!confirm('Видалити всі дані? Цю дію неможливо скасувати.')) return;
+      if(!confirm(tr('confirm_delete_all_data'))) return;
       const u=Auth.getUser(); const pw=Storage.get('users',{})[u]?.password;
       Storage.clearAll(); const users={}; users[u]={password:pw,createdAt:Date.now()}; Storage.set('users',users); Storage.set('session',u);
-      navigate('dashboard'); UI.toast('Дані очищено','error');
+      navigate('dashboard'); UI.toast(tr('toast_data_cleared'),'error');
     });
   };
 
@@ -762,22 +916,42 @@ const App = (() => {
     sel.innerHTML=Object.entries(ExerciseDB.GROUPS).map(([gk,gn])=>{ const opts=exs.filter(e=>e.group===gk).map(e=>`<option value="${e.id}">${e.name}</option>`).join(''); return opts?`<optgroup label="${gn}">${opts}</optgroup>`:''; }).join('');
   };
 
-  const exportJSON=()=>{
-    const data={programs:Programs.getAll(),log:WorkoutLog.getAll(),measurements:Progress.getMeasurements(),records:Progress.getRecords(),custom:Storage.get('custom_exercises',[])};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`gymplaner_${Auth.getUser()}_${new Date().toISOString().split('T')[0]}.json`; a.click(); UI.toast('Дані експортовано ✓');
-  };
-  const importJSON=(e)=>{
-    const file=e.target.files[0]; if(!file) return;
-    const r=new FileReader(); r.onload=ev=>{ try{ const d=JSON.parse(ev.target.result); if(d.programs) Storage.set(`programs_${Auth.getUser()}`,d.programs); if(d.log) Storage.set(`log_${Auth.getUser()}`,d.log); if(d.measurements) Storage.set(`measurements_${Auth.getUser()}`,d.measurements); if(d.records) Storage.set(`records_${Auth.getUser()}`,d.records); if(d.custom) Storage.set('custom_exercises',d.custom); navigate('dashboard'); UI.toast('Дані імпортовано ✓'); }catch{ UI.toast('Помилка файлу JSON','error'); } }; r.readAsText(file); e.target.value='';
+  const addPopularProgram = async (popId) => {
+    const pop = ProgramsManager.getPopular().find(p => p.id === popId);
+    if (!pop) return;
+    const newProg = {
+      id: `prog_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+      name: pop.name,
+      description: pop.description,
+      days: pop.days,
+      exercises: pop.exercises
+    };
+    await Programs.save(newProg);
+    UI.closeModal('modal-popular');
+    UI.toast(tr('import_success'));
+    Render.programs();
   };
 
-  const api = { init,navigate,editProgram:(id)=>openProgramModal(id),deleteProgram:async(id)=>{ const p=Programs.getById(id); if(!confirm(`Видалити "${p?.name}"?`)) return; await Programs.remove(id); Render.programs(); UI.toast('Програму видалено'); },showExerciseDetail:(id)=>{ const ex=ExerciseDB.getById(id); if(!ex) return; document.getElementById('ex-detail-name').textContent=ex.name; document.getElementById('ex-detail-group').innerHTML=`<span class="exercise-card-group">${ExerciseDB.groupName(ex.group)}</span>`; document.getElementById('ex-detail-desc').textContent=ex.desc||''; document.getElementById('ex-detail-tips').textContent=ex.tips?`💡 ${ex.tips}`:''; UI.openModal('modal-exercise-detail'); },showDayLog:(ds)=>{ const l=WorkoutLog.forDate(ds); if(l.length) UI.toast(`${ds}: ${l.map(x=>x.programName).join(', ')}`); },startSession,_delTempEx,_toggleSetDone };
+  const api = { init,navigate,editProgram:(id)=>openProgramModal(id),deleteProgram:async(id)=>{ const p=Programs.getById(id); if(!confirm(tr('confirm_delete_program', { name: p?.name || '' }))) return; await Programs.remove(id); Render.programs(); UI.toast(tr('toast_program_deleted')); },showExerciseDetail:(id)=>{ const ex=ExerciseDB.getById(id); if(!ex) return; document.getElementById('ex-detail-name').textContent=ex.name; document.getElementById('ex-detail-group').innerHTML=`<span class="exercise-card-group">${ExerciseDB.groupName(ex.group)}</span>`; document.getElementById('ex-detail-desc').textContent=ex.desc||''; document.getElementById('ex-detail-tips').textContent=ex.tips?`💡 ${ex.tips}`:''; UI.openModal('modal-exercise-detail'); },showDayLog:(ds)=>{ const l=WorkoutLog.forDate(ds); if(l.length) UI.toast(`${ds}: ${l.map(x=>x.programName).join(', ')}`); },startSession,_delTempEx,_toggleSetDone,addPopularProgram };
 
   Object.defineProperty(api,'calYear', {get:()=>calYear});
   Object.defineProperty(api,'calMonth',{get:()=>calMonth});
 
   return api;
 })();
+
+if (typeof window !== 'undefined') {
+  window.Storage = Storage;
+  window.Auth = Auth;
+  window.ExerciseDB = ExerciseDB;
+  window.Programs = Programs;
+  window.ProgramsManager = ProgramsManager;
+  window.WorkoutLog = WorkoutLog;
+  window.Progress = Progress;
+  window.Achievements = Achievements;
+  window.UI = UI;
+  window.Render = Render;
+  window.App = App;
+}
 
 document.addEventListener('DOMContentLoaded', App.init);

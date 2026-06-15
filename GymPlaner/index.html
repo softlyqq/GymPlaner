@@ -90,12 +90,16 @@
     <button class="burger-btn" id="burger-btn">☰</button>
     <h2 class="page-title" id="page-title" data-i18n="nav_dashboard">Дашборд</h2>
     <div class="topbar-right">
+      <div class="topbar-lang lang-switch" aria-label="Language">
+        <button class="lang-btn" type="button" data-lang-btn="uk">UA</button>
+        <button class="lang-btn" type="button" data-lang-btn="en">EN</button>
+      </div>
       <!-- Network badge (буде вставлений pwa.js) -->
       <div class="rest-timer-widget" id="rest-timer-widget">
         <span class="timer-icon">⏱</span>
         <span class="timer-display" id="timer-display">00:00</span>
-        <button class="timer-btn" id="timer-start-btn" data-i18n-title="auth_btn_login" title="Старт/Стоп">▶</button>
-        <button class="timer-btn" id="timer-reset-btn" data-i18n-title="nav_settings" title="Скинути">↺</button>
+        <button class="timer-btn" id="timer-start-btn" data-i18n-title="timer_play_tooltip" title="Старт/Стоп">▶</button>
+        <button class="timer-btn" id="timer-reset-btn" data-i18n-title="timer_reset_tooltip" title="Скинути">↺</button>
       </div>
       <div class="topbar-avatar" id="topbar-avatar"></div>
     </div>
@@ -132,9 +136,10 @@
         <button class="btn-primary" id="btn-new-program" data-i18n="plan_btn_new">+ Нова програма</button>
       </div>
       <div class="io-bar">
-        <button class="btn-ghost" id="btn-export-json" data-i18n="plan_btn_export">⬇ Експорт JSON</button>
-        <label class="btn-ghost" for="import-json-input" data-i18n="plan_btn_import">⬆ Імпорт JSON</label>
+        <button class="btn-ghost" id="btn-export-json" data-i18n="btn_export_programs">⬇ Експорт (JSON)</button>
+        <label class="btn-ghost" for="import-json-input" data-i18n="btn_import_programs">⬆ Імпорт (JSON)</label>
         <input type="file" id="import-json-input" accept=".json" style="display:none" />
+        <button class="btn-secondary" id="btn-popular-programs" data-i18n="btn_popular_programs">🌟 Популярні програми</button>
       </div>
       <div id="programs-list" class="programs-grid"></div>
     </section>
@@ -193,6 +198,7 @@
         <div id="measurements-history" class="data-table-wrapper"></div>
       </div>
       <div class="progress-panel" id="ptab-records">
+        <div class="chart-container record-chart-container"><canvas id="records-chart"></canvas></div>
         <div id="records-list" class="records-grid"></div>
         <button class="btn-secondary" id="btn-add-record" style="margin-top:1rem" data-i18n="prog_btn_add_rec">+ Додати рекорд</button>
       </div>
@@ -343,19 +349,31 @@
       <div class="card" id="backup-panel"></div>
 
       <!-- Language selection -->
-      <div class="section-header" style="margin-top:2rem"><h3 class="section-title"> Мова / Language</h3></div>
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="lang_title">Мова</h3></div>
       <div class="card">
         <div class="field-group" style="max-width:300px">
-          <label>Оберіть мову / Choose language</label>
-          <select id="language-select">
-            <option value="uk">Українська / Ukrainian</option>
-            <option value="en">English</option>
+          <label data-i18n="lang_choose">Оберіть мову</label>
+          <select id="language-select" data-lang-select>
+            <option value="uk" data-i18n="lang_uk">Українська</option>
+            <option value="en" data-i18n="lang_en">English</option>
           </select>
         </div>
       </div>
 
+      <!-- Automation API -->
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="sett_sec_auto">🤖 API та Автоматизація</h3></div>
+      <div class="card">
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px;" data-i18n="sett_auto_desc">Використовуй це посилання в додатках типу Shortcuts (iOS) або Tasker (Android) для автоматичного чекіну в залі за геолокацією.</p>
+        <label data-i18n="sett_auto_webhook" style="font-size:0.9rem; margin-bottom:4px; display:block;">Webhook URL:</label>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="api-webhook-url" readonly style="flex: 1;" />
+          <button class="btn-secondary" id="btn-copy-webhook" data-i18n="sett_btn_copy">📋 Копіювати</button>
+        </div>
+        <button class="btn-ghost" id="btn-generate-webhook" data-i18n="sett_btn_generate">🔄 Згенерувати новий токен</button>
+      </div>
+
       <!-- PWA -->
-      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="sett_sec_pwa">📲 PWA / Додаток</h3></div>
+      <div class="section-header" style="margin-top:2rem"><h3 class="section-title" data-i18n="sett_sec_pwa">📱 PWA / Додаток</h3></div>
       <div class="card">
         <div class="pwa-info-row"><span data-i18n="sett_pwa_mode">Режим відображення:</span><span id="pwa-display-mode">—</span></div>
         <div class="pwa-info-row"><span data-i18n="sett_pwa_sw">Service Worker:</span>    <span id="pwa-sw-status">—</span></div>
@@ -516,6 +534,19 @@
   </div>
 </div>
 
+<!-- Modal: Popular Programs -->
+<div class="modal-overlay hidden" id="modal-popular">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" data-i18n="modal_popular_title">Каталог популярних програм</h3>
+      <button class="modal-close" data-modal="modal-popular">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="popular-programs-list" class="programs-grid" style="grid-template-columns: 1fr;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast hidden"></div>
 <!-- Mobile sidebar overlay -->
@@ -530,6 +561,7 @@
 <script src="./modules/notifications.js"></script>
 <script src="./modules/security.js"></script>
 <script src="./modules/social.js"></script>
+<script src="./modules/automation.js"></script>
 <!-- Main app -->
 <script src="./script.js"></script>
 <!-- PWA (after app is ready) -->

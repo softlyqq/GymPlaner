@@ -1,0 +1,18 @@
+{
+  "name": "gymplaner",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Static PWA for workout planning and progress tracking.",
+  "scripts": {
+    "start": "node tools/server.js",
+    "dev": "node tools/server.js",
+    "build": "node -e \"console.log('GymPlaner is a static app. Deploy the project root as the publish directory.')\"",
+    "check": "node --check script.js && node --check pwa.js && node --check sw.js && node --check modules/i18n.js && node --check modules/db.js && node --check modules/sync.js && node --check modules/ai.js && node --check modules/gamification.js && node --check modules/notifications.js && node --check modules/security.js && node --check modules/social.js"
+  },
+  "keywords": [
+    "fitness",
+    "pwa",
+    "workouts"
+  ],
+  "license": "UNLICENSED"
+}
